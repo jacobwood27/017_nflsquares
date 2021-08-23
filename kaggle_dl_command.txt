@@ -1,0 +1,7 @@
+kaggle datasets download -d tobycrabtree/nfl-scores-and-betting-data
+unzip nfl-scores-and-betting-data
+rm nfl-scores-and-betting-data.zip
+rm nfl_stadiums.csv
+rm nfl_teams.csv
+rm spreadspoke.R
+mv spreadspoke_scores.csv data/

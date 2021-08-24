@@ -1,9 +1,5 @@
 You know that game everyone plays when watching the Superbowl? Where you buy a square for a dollar and then if the two last digits of the score at the end of the quarter end up corresponding to your square you win some money?
 
-@@im-100
-\fig{/projects/superbowl_squares/sb_squares.jpg}
-@@
-
 The numbers assigned to the rows and columns are typically randomly generated after all the squares are purchased, so the best squares like (0,0), (7,0) and (0,7), can't be knowingly purchased. 
 
 The random assignment prevents there from being any strategy involved with the selection of any one square. However, when purchasing multiple squares, you have the choice to buy your additional squares in a common row or column. 
@@ -24,12 +20,10 @@ To simplify the problem we will use only the predicted final score as input to t
 
 The historic data we will need to build the model thus looks something like (using the [2020 Superbowl](https://www.pro-football-reference.com/boxscores/202102070tam.htm) as an example):
 
-@@books-page
 | GameID       | Team | O/U  | Spread | Q1 | Q2 | Q3 | End | Implied Total | ABCD  | AABC  | AABB  | AAAB  | AAAA  |
 |--------------|------|------|--------|----|----|----|-----|---------------|-------|-------|-------|-------|-------|
 | 202102070tam | tam  | 54.5 | 3      | 7  | 21 | 31 | 31  | 25.75         | false | false | false | true  | false |
 | 202102070tam | kan  | 54.5 | -3     | 3  | 6  | 9  | 9   | 28.75         | false | true  | false | false | false |
-@@
 
 ### Scraping
 

@@ -25,56 +25,33 @@ function AAAA()
     return [x[1],x[1],x[1],x[1]]
 end
 
-function get_outcome1()
+function get_outcome(P)
     roll = rand()
-    if roll < 0.12
+    if roll < P[1]
         return ABCD()
-    elseif roll < 0.56
+    elseif roll < P[1] + P[2]
         return AABC()
-    elseif roll < 0.71
+    elseif roll < P[1] + P[2] + P[3]
         return AABB()
-    elseif roll < 0.85
+    elseif roll < P[1] + P[2] + P[3] + P[4]
         return AAAB()
     else 
         return AAAA()
     end
 end
 
-function get_outcome2()
-    roll = rand()
-    if roll < 0.12
-        return ABCD()
-    elseif roll < 0.56
-        return AABC()
-    elseif roll < 0.71
-        return AABB()
-    elseif roll < 0.85
-        return AAAB()
-    else 
-        return AAAA()
-    end
-end
-
-function sim(coords; N=1000000)
+function sim(coords, P1, P2; N=10000000)
     winnings = Threads.Atomic{Int}(0)
-    num_wins = Threads.Atomic{Int}(0)
     payoff = 25
     Threads.@threads for i = 1:N
-        game_win = false
-        if mod(100*i//N,1)==0
-            println(100*i/N,"%")
-        end
-        t1 = get_outcome1()
-        t2 = get_outcome2()
+
+        t1 = get_outcome(P1)
+        t2 = get_outcome(P2)
 
         for j=1:4
             for c in coords
                 if t1[j]==c[1] && t2[j]==c[2]
                     Threads.atomic_add!(winnings, payoff)
-                    if !game_win
-                        Threads.atomic_add!(num_wins, 1)
-                        game_win = true
-                    end
                     break
                 end
             end
@@ -87,13 +64,32 @@ function sim(coords; N=1000000)
     println("Expected return on \$$(length(coords)) = \$$(winnings[]/N)")
     println()
 
-    return winnings[]/length(coords)/N, num_wins[]/N
+    return winnings[]/length(coords)/N
 end
 
-r1, w1 = sim([[1,1],[1,2],[1,3],[1,4]])
-r2, w2 = sim([[1,1],[2,1],[3,1],[4,1]])
-r3, w3 = sim([[1,1],[1,2],[2,1],[2,2]])
-r4, w4 = sim([[1,1],[2,2],[3,3],[4,4]])
+## 1 square
+P1 = [0.14, 0.48, 0.13, 0.22, 0.03]
+P2 = [0.19, 0.46, 0.11, 0.21, 0.03]
+C = [(4,8)]
+sim(C, P1, P2)
 
-println([r1,r2,r3,r4])
-println([w1,w2,w3,w4])
+## 2 squares
+P1 = [0.14, 0.48, 0.13, 0.22, 0.03]
+P2 = [0.19, 0.46, 0.11, 0.21, 0.03]
+C = [   [(1,1), (1,2)],
+        [(1,1), (2,1)],
+        [(1,1), (2,2)]
+    ]
+[sim(c, P1, P2) for c in C]
+
+## 3 squares
+P1 = [0.14, 0.48, 0.13, 0.22, 0.03]
+P2 = [0.19, 0.46, 0.11, 0.21, 0.03]
+C = [   [(1,1), (1,2), (1,3)],
+        [(1,1), (1,2), (2,3)],
+        [(1,1), (1,2), (2,1)],
+        [(1,1), (2,1), (3,2)],
+        [(1,1), (2,1), (3,1)],
+        [(1,1), (2,2), (3,3)],
+    ]
+[sim(c, P1, P2) for c in C]

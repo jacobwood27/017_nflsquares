@@ -1,54 +1,45 @@
-using CSV, DataFrames, StatsPlots, Statistics
+using CSV, DataFrames, Plots, Statistics
+
 
 df = CSV.read("processed_scores.csv", DataFrame)
 
-#Remove games where the OU wasn't set 
-delete!(df, df.OU .< 1.0)
-
-#One hot encode the quarter results
-df[!,"1111"] .= false
-df[!,"211"] .= false
-df[!,"22"] .= false
-df[!,"31"] .= false
-df[!,"4"] .= false
-for row in eachrow(df)
-    qs = [mod(row.q1,10), mod(row.q2,10), mod(row.q3,10), mod(row.final,10)]
-    uq = unique(qs)
-    if length(uq) == 1
-        row["4"] = true
-    elseif length(uq) == 4
-        row["1111"] = true
-    elseif length(uq) == 3
-        row["211"] = true
-    else
-        v1 = uq[1]
-        if count(qs.==v1) == 2
-            row["22"] = true
-        else
-            row["31"] = true
-        end
-    end
-end
-
-
-
 # Histogram of actual total
-histogram(df.final)
+histogram(df.final,
+    bins = -0.5:62.5,
+    xlabel = "Points",
+    ylabel = "Counts",
+    linewidth=0,
+    label = "Actual")
 
 # Histogram of implied score 
-histogram(df.imp_tot)
+stephist!(df.imp_tot,
+    bins = -0.5:62.5,
+    linewidth=2,
+    label = "Predicted")
+
+savefig("score_histogram.png")
 
 # Marginal Histogram
-histogram2d(df.final, df.imp_tot,
-    xlabel="Actual Final [points]",
-    ylabel="Predicted Final [points]",
-    xlim=[0,65],
-    ylim=[0,65],
-    bins=0:65)
+histogram2d(df.imp_tot, df.final,
+    xlabel="Predicted [points]",
+    ylabel="Actual [points]",
+    xlim=[-0.5,63],
+    ylim=[-0.5,63],
+    bins=-0.5:62.5,
+    aspect_ratio=:equal,
+    colorbar_title="Counts")
+X = zeros(length(df.imp_tot),2)
+X[:,1] = df.imp_tot
+X[:,2] .= 1.0
+c = X\df.final
+plot!(x->c[1]*x+c[2], 
+    linewidth=2,
+    label="Regression")
+savefig("score_heatmap.png")
 # marginalkde(df.final, df.imp_tot)
 
 # Generic scatter
-plot(df.imp_tot, df.final, seriestype = :scatter)
+plot(collect(df.imp_tot), collect(df.final), seriestype = :scatter, smooth=true)
 plot!(x->x,0,60,color=:red)
 
 # Histograms at some key slices
@@ -69,44 +60,57 @@ p
 
 
 # One hot encode binned expectation
-rngs = 10:2:30
+rngs = 8:2:32
 
-y1111 = []
-y211 = []
-y22 = []
-y31 = []
-y4 = []
+y = zeros(Float64, 0,5)
 for i in 2:length(rngs)
 
-    i = (df.imp_tot .> rngs[i-1]) .& (df.imp_tot .<= rngs[i])
+    idx = (df.imp_tot .> rngs[i-1]) .& (df.imp_tot .<= rngs[i])
 
-    n1111 = count(df[i,"1111"])
-    n211 = count(df[i,"211"])
-    n22 = count(df[i,"22"])
-    n31 = count(df[i,"31"])
-    n4 = count(df[i,"4"])
-    tot = count(i)
+    tot = count(idx)
 
-    push!(y1111,n1111/tot)
-    push!(y211,n211/tot)
-    push!(y22,n22/tot)
-    push!(y31,n31/tot)
-    push!(y4,n4/tot)
+    y = vcat(y, [count(df[idx,"ABCD"])/tot,
+            count(df[idx,"AABC"])/tot,
+            count(df[idx,"AABB"])/tot,
+            count(df[idx,"AAAB"])/tot,
+            count(df[idx,"AAAA"])/tot
+            ]')
 
 end
-areaplot(11:2:29, [
-    y1111+y211+y22+y31+y4,
-    y1111+y211+y22+y31,
-    y1111+y211+y22,
-    y1111+y211,
-    y1111],
-    label = ["AAAA" "AAAB" "AABB" "AABC" "ABCD"],
-    legend = :right)
+
+areaplot(rngs[1]+1:2:rngs[end], y,
+    label = ["ABCD" "AABC" "AABB" "AAAB" "AAAA"],
+    legend = :right,
+    xlabel = "Predicted [points]",
+    ylabel = "Fraction of Games w/ Outcome",
+)
+savefig("outcome_fill.png")
+
+#Expectation as score goes to inf
+AAAAe = binomial(4,0)   * (0.1*0.1*0.1)
+AAABe = binomial(4,1)   * (0.9*0.1*0.1)
+AABBe = binomial(4,2)/2 * (0.9*0.1*0.1)
+AABCe = binomial(4,2)   * (0.9*0.8*0.1)
+ABCDe = binomial(4,4)   * (0.9*0.8*0.7)
+
+plot(rngs[1]+1:2:rngs[end], y, 
+    label = ["ABCD" "AABC" "AABB" "AAAB" "AAAA"],
+    linewidth=3, 
+    legend=:topleft,
+    xlabel = "Predicted [points]",
+    ylabel = "Fraction of Games w/ Outcome",
+)
+# plot!(repeat([rngs[end]],5), [AAAAe, AAABe, AABBe, AABCe, ABCDe], st=:scatter)
+savefig("outcome_line.png")
 
 
-plot(11:2:29, [y4,y31,y22,y211,y1111], 
-    label = ["AAAA" "AAAB" "AABB" "AABC" "ABCD"],
-    linewidth=2, legend=:topleft)
-
-
-
+using Interpolations
+labs = ["ABCD" "AABC" "AABB" "AAAB" "AAAA"]
+ep = 25.75
+for i in 1:5
+    lab = labs[i]
+    xk = rngs[1]+1:2:rngs[end]
+    yk = y[:,i]
+    int = LinearInterpolation(xk,yk)
+    println(lab, ": ", int(ep))
+end

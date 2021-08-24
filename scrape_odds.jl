@@ -5,10 +5,6 @@ using DataFrames, CSV
 
 df = CSV.read("quarter_scores.csv", DataFrame)
 
-# Make cumulative
-df.q2 .= df.q1 .+ df.q2
-df.q3 .= df.q2 .+ df.q3
-
 df[!,"spread"] .= NaN
 df[!,"OU"]     .= NaN
 
@@ -35,8 +31,42 @@ for row in eachrow(df)
     end
 end
 
+#Sort by date
 sort!(df, :id)
 
+#Remove games where the OU wasn't set 
+delete!(df, df.OU .< 1.0)
+
+#Calc implied total
 df[!,"imp_tot"] .= (df.OU ./ 2) .- (df.spread ./ 2)
+
+# Make cumulative
+df.q2 .= df.q1 .+ df.q2
+df.q3 .= df.q2 .+ df.q3
+
+#One hot encode the quarter results
+df[!,"ABCD"] .= false
+df[!,"AABC"] .= false
+df[!,"AABB"] .= false
+df[!,"AAAB"] .= false
+df[!,"AAAA"] .= false
+for row in eachrow(df)
+    qs = [mod(row.q1,10), mod(row.q2,10), mod(row.q3,10), mod(row.final,10)]
+    uq = unique(qs)
+    if length(uq) == 1
+        row["AAAA"] = true
+    elseif length(uq) == 4
+        row["ABCD"] = true
+    elseif length(uq) == 3
+        row["AABC"] = true
+    else
+        v1 = uq[1]
+        if count(qs.==v1) == 2
+            row["AABB"] = true
+        else
+            row["AAAB"] = true
+        end
+    end
+end
 
 CSV.write("processed_scores.csv",df)
